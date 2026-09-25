@@ -20,7 +20,10 @@ const services = [
 ];
 
 function Status({ children, tone }) { return <span className={`status ${tone}`}>{children}</span>; }
-function Button({ children, primary, onClick, className = "", type = "button" }) { return <button type={type} className={`button ${primary ? "primary" : "secondary"} ${className}`} onClick={onClick}>{children}</button>; }
+function Button({ children, primary, onClick, className = "", type = "button" }) {
+  const handleClick = onClick || (() => window.dispatchEvent(new CustomEvent("tripdesk:toast", { detail: "This action is ready for the next workflow step." })));
+  return <button type={type} className={`button ${primary ? "primary" : "secondary"} ${className}`} onClick={handleClick}>{children}</button>;
+}
 function PageTitle({ eyebrow, title, description, actions }) { return <div className="page-title"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{description}</p></div><div className="actions">{actions}</div></div>; }
 
 function Splash({ onDone }) {
@@ -29,7 +32,8 @@ function Splash({ onDone }) {
 }
 
 function Login({ onLogin }) {
-  return <div className="login"><section className="login-brand"><div className="logo-mark">TD</div><h1>TripDesk</h1><p>One workspace for enquiries, quotations and supplier bookings.</p><small>Internal agents and partner agencies</small></section><section className="login-form"><h1>Welcome back</h1><p>Sign in to your TripDesk workspace</p><form onSubmit={(event) => { event.preventDefault(); onLogin(); }}><label>WORK EMAIL<input defaultValue="sarah.chen@northstar.example" /></label><label>PASSWORD<input type="password" defaultValue="password" /></label><a href="#forgot">Forgot password?</a><div className="alert error"><CircleAlert size={16} /> Wrong credentials state: check your email and password.</div><div className="alert warning"><Clock3 size={16} /> Unactivated account state: ask your administrator to activate access.</div><Button primary type="submit">Sign in</Button><small>First time here? <a href="#setup">Set up your password</a></small></form></section></div>;
+  const [message, setMessage] = useState("");
+  return <div className="login"><section className="login-brand"><div className="logo-mark">TD</div><h1>TripDesk</h1><p>One workspace for enquiries, quotations and supplier bookings.</p><small>Internal agents and partner agencies</small></section><section className="login-form"><h1>Welcome back</h1><p>Sign in to your TripDesk workspace</p><form onSubmit={(event) => { event.preventDefault(); onLogin(); }}><label>WORK EMAIL<input defaultValue="sarah.chen@northstar.example" /></label><label>PASSWORD<input type="password" defaultValue="password" /></label><button className="text-link" type="button" onClick={() => setMessage("Password reset instructions will be sent to your work email.")}>Forgot password?</button><div className="alert error"><CircleAlert size={16} /> Wrong credentials state: check your email and password.</div><div className="alert warning"><Clock3 size={16} /> Unactivated account state: ask your administrator to activate access.</div><Button primary type="submit">Sign in</Button><small>First time here? <button className="text-link" type="button" onClick={() => setMessage("Password setup has been requested for this account.")}>Set up your password</button></small>{message && <div className="alert info"><Check size={16} /> {message}</div>}</form></section></div>;
 }
 
 function Sidebar({ current, navigate }) {
@@ -70,9 +74,18 @@ function Restaurants() { return <><PageTitle eyebrow="TripDesk / Add service" ti
 
 export default function App() {
   const [screen, setScreen] = useState("splash");
+  const [toast, setToast] = useState("");
   const navigate = (next) => setScreen(next);
+  useEffect(() => {
+    const showToast = (event) => {
+      setToast(event.detail);
+      window.setTimeout(() => setToast(""), 2200);
+    };
+    window.addEventListener("tripdesk:toast", showToast);
+    return () => window.removeEventListener("tripdesk:toast", showToast);
+  }, []);
   if (screen === "splash") return <Splash onDone={() => navigate("login")} />;
   if (screen === "login") return <Login onLogin={() => navigate("dashboard")} />;
   const page = { dashboard: <Dashboard navigate={navigate} />, enquiries: <Enquiries navigate={navigate} />, trip: <Trip navigate={navigate} />, flights: <Flights />, hotels: <Hotels />, restaurants: <Restaurants /> }[screen];
-  return <Shell screen={screen} navigate={navigate}>{page}</Shell>;
+  return <><Shell screen={screen} navigate={navigate}>{page}</Shell>{toast && <div className="app-toast">{toast}</div>}</>;
 }
